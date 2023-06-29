@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<TemplateManager>
+	<Page Name="All Data Pages" PageGUID="13CAEDF7-505A-48DE-8F67-E691EEE09918" />
+	<Page Name="[Data Page] ProductSales" PageGUID="3AB44C50-D786-4700-9688-B90108F8EA64" />
+	<Page Name="[Data Page] Workers" PageGUID="84460EA3-E340-403C-A416-2F98CD5FC84D" />
+	<Page Name="[Data Page] QuantityShipped" PageGUID="03B9C86D-051B-4494-A0B0-4A3DC4D18308" />
+</TemplateManager>

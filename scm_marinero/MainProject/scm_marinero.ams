@@ -1,0 +1,398 @@
+## ams_version=1.0
+
+Model Main_scm_marinero {
+	Procedure MainInitialization {
+		Comment: "Add initialization statements here that do NOT require any library being initialized already.";
+	}
+	Procedure PostMainInitialization {
+		Comment: {
+			"Add initialization statements here that require that the libraries are already initialized properly,
+			or add statements that require the Data Management module to be initialized."
+		}
+	}
+	Procedure MainExecution {
+		Body: {
+			solve MaxProfit;
+		}
+	}
+	Procedure PreMainTermination {
+		Body: {
+			return DataManagementExit();
+		}
+		Comment: {
+			"Add termination statements here that require all libraries to be still alive.
+			Return 1 if you allow the termination sequence to continue.
+			Return 0 if you want to cancel the termination sequence."
+		}
+	}
+	Procedure MainTermination {
+		Body: {
+			return 1;
+		}
+		Comment: {
+			"Add termination statements here that do not require all libraries to be still alive.
+			Return 1 to allow the termination sequence to continue.
+			Return 0 if you want to cancel the termination sequence.
+			It is recommended to only use the procedure PreMainTermination to cancel the termination sequence and let this procedure always return 1."
+		}
+	}
+	Section Quantities_and_Units {
+		Comment: {
+			"This section contains all the units and quantities that are added automatically by AIMMS.
+			It is recommended to declare all your quantities here."
+		}
+		DeclarationSection sets {
+			Set Products {
+				Index: Products_i;
+			}
+			Set Plants {
+				Index: Plants_i;
+			}
+			Set SalesCenter {
+				Index: SalesCenter_i;
+			}
+			Set Markets {
+				Index: Markets_i;
+			}
+			Set Periods {
+				Index: Periods_i;
+			}
+		}
+		DeclarationSection Param {
+			Parameter TransportCost {
+				IndexDomain: (Plants_i,SalesCenter_i);
+			}
+			Parameter InventoryCost {
+				IndexDomain: (SalesCenter_i,Products_i);
+			}
+			Parameter ProductVolume {
+				IndexDomain: Products_i;
+			}
+			Parameter UpperLimitManHour {
+				IndexDomain: Plants_i;
+			}
+			Parameter LowerLimitManHour {
+				IndexDomain: Plants_i;
+			}
+			Parameter ManmonthCost {
+				IndexDomain: Plants_i;
+			}
+			Parameter ManHourAvail {
+				IndexDomain: Plants_i;
+			}
+			Parameter ManHourUsage {
+				IndexDomain: (Plants_i,Products_i);
+			}
+			Parameter OpeningPlantCost {
+				IndexDomain: Plants_i;
+			}
+			Parameter OpeningCenterCost {
+				IndexDomain: SalesCenter_i;
+			}
+			Parameter DemandMarket {
+				IndexDomain: (Periods_i,Products_i);
+			}
+			Parameter Prices {
+				IndexDomain: (Products_i,Markets_i);
+			}
+			Parameter PercentageDemandMarket {
+				IndexDomain: (Products_i,Markets_i);
+			}
+		}
+		DeclarationSection DecisionVariables {
+			Variable QuantityShipped {
+				IndexDomain: (Periods_i,Plants_i,SalesCenter_i,Products_i);
+				Range: nonnegative;
+			}
+			Variable Workers {
+				IndexDomain: (Periods_i,Plants_i);
+				Range: nonnegative;
+			}
+			Variable SalesCenterOpen {
+				IndexDomain: SalesCenter_i;
+				Range: binary;
+			}
+			Variable PlantsOpen {
+				IndexDomain: Plants_i;
+				Range: binary;
+			}
+			Variable ProductSales {
+				IndexDomain: (Periods_i,SalesCenter_i,Products_i,Markets_i);
+				Range: nonnegative;
+			}
+			Variable QuantityStored {
+				IndexDomain: (Periods_i,SalesCenter_i,Products_i);
+				Range: nonnegative;
+			}
+		}
+		DeclarationSection Constraintss {
+			Constraint InventoryBalanceM1 {
+				IndexDomain: (Periods_i,SalesCenter_i,Products_i) | ord(Periods_i) = 1;
+				Definition: QuantityStored(Periods_i, SalesCenter_i, Products_i) = sum(Plants_i, QuantityShipped(Periods_i, Plants_i, SalesCenter_i, Products_i)) - sum(Markets_i,ProductSales(Periods_i, SalesCenter_i, Products_i, Markets_i));
+			}
+			Constraint InventoryBalanceOtherM {
+				IndexDomain: (Periods_i,SalesCenter_i,Products_i) | ord(Periods_i) > 1;
+				Definition: QuantityStored(Periods_i, SalesCenter_i, Products_i) = QuantityStored(Periods_i-1, SalesCenter_i, Products_i) + sum(Plants_i, QuantityShipped(Periods_i, Plants_i, SalesCenter_i, Products_i)) - sum(Markets_i,ProductSales(Periods_i, SalesCenter_i, Products_i, Markets_i));
+			}
+			Constraint DemandSatisfaction {
+				IndexDomain: (Periods_i,Products_i, Markets_i);
+				Definition: sum(SalesCenter_i,ProductSales(Periods_i, SalesCenter_i,Products_i,Markets_i)) <= DemandMarket(Periods_i,Products_i) * PercentageDemandMarket(Products_i, Markets_i);
+			}
+			Constraint ProductionCapacity {
+				IndexDomain: (Periods_i,Plants_i);
+				Definition: sum(Products_i, ManHourUsage(Plants_i, Products_i) * sum(SalesCenter_i,QuantityShipped(Periods_i, Plants_i,SalesCenter_i, Products_i))) <= Workers(Periods_i,Plants_i)*ManHourAvail(Plants_i);
+			}
+			Constraint SalesCentersLimit {
+				Definition: sum(SalesCenter_i, SalesCenterOpen(SalesCenter_i)) <= 7;
+			}
+			Constraint PlantsOpening {
+				IndexDomain: Plants_i;
+				Definition: sum(Periods_i,sum(SalesCenter_i, sum(Products_i,QuantityShipped(Periods_i, Plants_i, SalesCenter_i,Products_i)))) <= PlantsOpen(Plants_i)*10000000000;
+			}
+			Constraint SalesCenterOpening {
+				IndexDomain: SalesCenter_i;
+				Definition: sum(Periods_i,sum(Products_i, sum(Markets_i, ProductSales(Periods_i, SalesCenter_i, Products_i, Markets_i)))) <= SalesCenterOpen(SalesCenter_i)*100000000000000;
+			}
+			Constraint WorkersUpperBounds {
+				IndexDomain: (Periods_i, Plants_i);
+				Definition: Workers(Periods_i, Plants_i) <= UpperLimitManHour(Plants_i) * PlantsOpen(Plants_i);
+			}
+			Constraint WorkersLowerBounds {
+				IndexDomain: (Periods_i,Plants_i);
+				Definition: Workers(Periods_i, Plants_i) >= LowerLimitManHour(Plants_i) * PlantsOpen(Plants_i);
+			}
+		}
+		DeclarationSection Objective_Fonction {
+			MathematicalProgram MaxProfit {
+				Objective: TotalProfit;
+				Direction: maximize;
+				Constraints: AllConstraints;
+				Variables: AllVariables;
+				Type: Automatic;
+			}
+			Variable TotalProfit {
+				Range: free;
+				Definition: Revenue - Costs;
+			}
+			Variable Revenue {
+				Range: free;
+				Definition: sum(Periods_i, sum(SalesCenter_i, sum(Products_i, sum(Markets_i, (ProductSales(Periods_i, SalesCenter_i,Products_i,Markets_i) * Prices(Products_i, Markets_i))))));
+			}
+			Variable Costs {
+				Range: nonnegative;
+				Definition: ActivationCosts + TransportationCosts+ InventoryHoldingCosts + LaborCosts;
+			}
+			Variable ActivationCosts {
+				Range: nonnegative;
+				Definition: (sum(Plants_i,(PlantsOpen(Plants_i) * OpeningPlantCost(Plants_i)*1000)) + sum(SalesCenter_i, (SalesCenterOpen(SalesCenter_i) * OpeningCenterCost(SalesCenter_i)*1000)));
+			}
+			Variable TransportationCosts {
+				Range: free;
+				Definition: sum(Periods_i, sum(Plants_i, sum(SalesCenter_i,sum(Products_i, (QuantityShipped(Periods_i,Plants_i, SalesCenter_i, Products_i) * ProductVolume(Products_i) * TransportCost(Plants_i,SalesCenter_i))))));
+			}
+			Variable InventoryHoldingCosts {
+				Range: nonnegative;
+				Definition: sum(Periods_i, sum(SalesCenter_i, sum(Products_i, (QuantityStored(Periods_i,SalesCenter_i,Products_i) * InventoryCost(SalesCenter_i,Products_i)))));
+			}
+			Variable LaborCosts {
+				Range: nonnegative;
+				Definition: sum(Periods_i, sum(Plants_i, (Workers(Periods_i, Plants_i) * ManMonthCost(Plants_i))));
+			}
+			Variable Copy_Revenue {
+				IndexDomain: Periods_i;
+				Range: free;
+				Definition: sum(SalesCenter_i, sum(Products_i, sum(Markets_i, (ProductSales(Periods_i, SalesCenter_i,Products_i,Markets_i) * Prices(Products_i, Markets_i)))));
+			}
+			Variable Copy_InventoryHoldingCosts {
+				IndexDomain: Periods_i;
+				Range: nonnegative;
+				Definition: sum(SalesCenter_i, sum(Products_i, (QuantityStored(Periods_i,SalesCenter_i,Products_i) * InventoryCost(SalesCenter_i,Products_i))));
+			}
+		}
+		Quantity SI_Time_Duration {
+			BaseUnit: s;
+			Conversions: minute->s : #-># * 60;
+			Comment: {
+				"Expresses the value for the duration of periods.
+				
+				The unit s has been added automatically because it is a required unit for AimmsWebUI.
+				
+				The unit minute has been added automatically because it is a required unit for AimmsWebUI."
+			}
+		}
+	}
+	Procedure ImportData {
+		Body: {
+			!!!!! Follow the following steps if axll commands appear in red in the code below:
+			!!!!! In the "File" menu, click on "Library Manager" 
+			!!!!! --> Click on "Add Library from Repository"
+			!!!!! --> Click on "AimmsXXLibrary" in the list 
+			!!!!! --> Click on "Select", and then "OK".
+			
+			!!!!! Documentation: https://how-to.aimms.com/Articles/85/85-using-axll-library.html
+			!!!!! Create the sets and parameters before importing data into them. Always import your set elements first.
+			!!!!! In this example project, there are two sets: Warehouses and Customers. 
+			
+			if axll::WorkBookIsOpen(WorkbookFilename : "Marinero_data.xlsx" ) then     !Close workbook before reopening it to prevent being blocked because of coding mistakes
+				axll::CloseWorkBook(WorkbookFilename : "Marinero_data.xlsx" );
+			endif;
+			axll::OpenWorkBook(WorkbookFilename : "Marinero_data.xlsx" );  !Open workbook
+			
+			!1. Import elements in Sets
+			axll::SelectSheet(SheetName : "Manpower" );
+			
+			axll::ReadSet(
+			        SetReference              : Products,   	!Name of the set in AIMMS
+			        SetRange                  : "Products",  	!Range in the Excel sheet
+			        ExtendSuperSets           :  0          	!This line matters only for subsets but you have to write it in all cases
+			        );
+			axll::ReadSet(
+			        SetReference              : Plants,   	!Name of the set in AIMMS
+			        SetRange                  : "Plants",  	!Range in the Excel sheet
+			        ExtendSuperSets           :  0          	!This line matters only for subsets but you have to write it in all cases
+			        );
+			
+			axll::SelectSheet(SheetName : "transport&inventory costs" );     	!Always open the specific Excel sheet you want to read
+			
+			axll::ReadSet(
+			        SetReference              : SalesCenter,   	!Name of the set in AIMMS
+			        SetRange                  : "SalesCenters",  	!Range in the Excel sheet
+			        ExtendSuperSets           :  0          	!This line matters only for subsets but you have to write it in all cases
+			        );
+			
+			
+			axll::SelectSheet(SheetName : "demand parameters" );   
+			axll::ReadSet(
+			        SetReference              : Markets,   	!Name of the set in AIMMS
+			        SetRange                  : "Markets",   	!Range in the Excel sheet
+			        ExtendSuperSets           :  0          	!This line matters only for subsets but you have to write it in all cases
+			        );
+			axll::ReadSet(
+			        SetReference              : Periods,   	!Name of the set in AIMMS
+			        SetRange                  : "Periods",   	!Range in the Excel sheet
+			        ExtendSuperSets           :  0          	!This line matters only for subsets but you have to write it in all cases
+			        );        
+			
+			!2. Import parameter values
+			axll::SelectSheet(SheetName : "transport&inventory costs" );     		!Always open the specific Excel sheet you want to read
+			
+			axll::ReadTable(  						!ReadTable: to read parameters with 2 or more dimensions
+			        IdentifierReference              : TransportCost,   	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A5:A7",   		!If parameter indexed on (i,j): Range of elements i
+			        ColumnHeaderRange      		 : "B4:I4" ,  		!If parameter indexed on (i,j): Range of elements j
+			        DataRange                        : "B5:I7"    !Range of the parameter values
+			        );
+			
+			axll::ReadTable(  						!ReadTable: to read parameters with 2 or more dimensions
+			        IdentifierReference              : InventoryCost,   	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A20:A27",   		!If parameter indexed on (i,j): Range of elements i
+			        ColumnHeaderRange      		 : "B19:F19" ,  		!If parameter indexed on (i,j): Range of elements j
+			        DataRange                        : "s_InventoryCost"    !Range of the parameter values
+			        );
+			
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : ProductVolume,  	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "K5:K9",   		!Range of the index in the Excel sheet
+			        DataRange                        : "v_ProductVolume"    !Range of the parameter data
+			        );
+			
+			axll::SelectSheet(SheetName : "Manpower" );     
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : UpperLimitManHour,  	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A9:A11",   		!Range of the index in the Excel sheet
+			        DataRange                        : "U_UpperLimitManHour"    	!Range of the parameter data
+			        );
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : LowerLimitManHour,  	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A9:A11",   		!Range of the index in the Excel sheet
+			        DataRange                        : "L_LowerLimitManHour" !Range of the parameter data
+			        );
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : ManMonthCost,  	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A9:A11",   		!Range of the index in the Excel sheet
+			        DataRange                        : "c_ManHourCost" !Range of the parameter data
+			        );
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : ManHourAvail,  	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A9:A11",   		!Range of the index in the Excel sheet
+			        DataRange                        : "h_ManHourAvail" !Range of the parameter data
+			        );
+			axll::ReadTable(  						!ReadTable: to read parameters with 2 or more dimensions
+			        IdentifierReference              : ManHourUsage,   	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "Plants",   		!If parameter indexed on (i,j): Range of elements i
+			        ColumnHeaderRange      		 : "Products" ,  		!If parameter indexed on (i,j): Range of elements j
+			        DataRange                        : "o_ManHourUsage"    !Range of the parameter values
+			        );
+			
+			axll::SelectSheet(SheetName : "Fixed costs" );      
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : OpeningPlantCost,   		!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "B4:B6",   	!Range of the index in the Excel sheet
+			        DataRange                        : "Fp_OpeningPlantCost"    		!Range of the parameter data
+			        );
+			axll::ReadList(   						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : OpeningCenterCost,   		!Name of the parameter in AIMMS
+			        RowHeaderRange                 : "B10:I10",   	!Range of the index in the Excel sheet
+			        DataRange                        : "Fs_OpeningCenterCost"    		!Range of the parameter data
+			        );
+			
+			axll::SelectSheet(SheetName : "demand parameters" );     !		Always open the specific Excel sheet you want to read
+			axll::ReadTable( 						!ReadList: to read lists (1 dimension)
+			        IdentifierReference              : DemandMarket,   		!Name of the parameter in AIMMS
+			        RowHeaderRange	                 : "Periods",   	!Range of the index in the Excel sheet
+			        ColumnHeaderRange      		 : "J3:N3" ,
+			        DataRange                        : "DemandMarket"    		!Range of the parameter data
+			        );
+			
+			axll::ReadTable(  						!ReadTable: to read parameters with 2 or more dimensions
+			        IdentifierReference              : Prices,   	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A20:A24",   		!If parameter indexed on (i,j): Range of elements i
+			        ColumnHeaderRange      		 : "B19:C19" ,  		!If parameter indexed on (i,j): Range of elements j
+			        DataRange                        : "PriceMarket"    !Range of the parameter values
+			        );
+			
+			axll::ReadTable(  						!ReadTable: to read parameters with 2 or more dimensions
+			        IdentifierReference              : PercentageDemandMarket,   	!Name of the parameter in AIMMS
+			        RowHeaderRange                   : "A12:A16",   		!If parameter indexed on (i,j): Range of elements i
+			        ColumnHeaderRange      		 : "Markets" ,  		!If parameter indexed on (i,j): Range of elements j
+			        DataRange                        : "PercentageDemandMarket"    !Range of the parameter values
+			        );
+			
+			axll::CloseWorkBook(WorkbookFilename : "Marinero_data.xlsx" ); !Close the workbook after reading all the data
+		}
+	}
+	Procedure ExportData {
+		Body: {
+			if axll::WorkBookIsOpen(WorkbookFilename : "exportdata.xlsx" ) then     !Close workbook before reopening it to prevent being blocked because of coding mistakes
+				axll::CloseWorkBook(WorkbookFilename : "exportdata.xlsx" );
+			endif;
+			axll::OpenWorkBook(WorkbookFilename : "exportdata.xlsx" );  !Open workbook
+			
+			axll::SelectSheet(SheetName : "Sales" );
+			axll::WriteTable(
+			        IdentifierReference     : ProductSales(Periods_i, SalesCenter_i, Products_i, Markets_i),
+				RowHeaderRange          : "A2:C2",
+			        ColumnHeaderRange       : "D1:E1",
+			        DataRange               : "",
+			        AllowRangeOverflow      : 1,
+			        WriteZeros              : 1,
+			        IncludeEmptyRows        : 0,
+			        IncludeEmptyColumns     : 0,
+			        IncludeEmptyRowsColumns : 0);
+			
+			axll::SelectSheet(SheetName : "Production" );
+			axll::WriteTable(
+			        IdentifierReference     : QuantityShipped(Periods_i, Plants_i, SalesCenter_i, Products_i),
+				RowHeaderRange          : "A2:C2",
+			        ColumnHeaderRange       : "D1:E1",
+			        DataRange               : "",
+			        AllowRangeOverflow      : 1,
+			        WriteZeros              : 1,
+			        IncludeEmptyRows        : 0,
+			        IncludeEmptyColumns     : 0,
+			        IncludeEmptyRowsColumns : 0);
+			
+			axll::CloseWorkBook(WorkbookFilename : "exportdata.xlsx" );
+		}
+	}
+}

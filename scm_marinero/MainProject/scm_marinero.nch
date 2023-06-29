@@ -1,0 +1,13 @@
+* The timestamps in this namechange file are stored in Coordinated universal time (UTC).
+"ProductInventory" "ProductStorage" "2023-04-12 12:18:05"
+"ProductStorage" "QuantityStored" "2023-04-12 13:14:38"
+"ProductionActivationCosts" "ActivationCosts" "2023-04-14 08:45:23"
+"ProductionActivationCosts_definition" "ActivationCosts_definition" "2023-04-14 08:45:23"
+"MaxProft" "MaxProfit" "2023-04-14 09:04:30"
+"WorkersBounds" "WorkersUpperBounds" "2023-04-14 11:35:50"
+"ProductSalesFirm" "ProductSales" "2023-04-18 08:50:51"
+"InventoryBalance" "InventoryBalanceM1" "2023-04-18 08:54:26"
+"Copy_InventoryBalanceM1" "InventoryBalanceOtherM" "2023-04-18 08:57:31"
+"DemandSatisfactionFirm" "DemandSatisfaction" "2023-04-18 08:58:37"
+"ShippSales" "SalesCenterOpening" "2023-04-18 09:18:22"
+"Procedure_1" "ExportData" "2023-05-02 08:39:22"
